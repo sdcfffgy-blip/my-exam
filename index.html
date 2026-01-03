@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>近现代史刷题神器 - 自动加载版</title>
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-light: #eff6ff;
+        --success: #10b981;
+        --success-bg: #ecfdf5;
+        --error: #ef4444;
+        --error-bg: #fef2f2;
+        --warn: #f59e0b;
+        --warn-bg: #fffbeb;
+        --text-main: #1f2937;
+        --bg-color: #f3f4f6;
+        --sidebar-width: 250px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        height: 100vh;
+        display: flex;
+        overflow: hidden;
+      }
+      /* 侧边栏样式 */
+      .sidebar {
+        width: var(--sidebar-width);
+        background: white;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+      .sidebar-header {
+        padding: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--primary);
+        border-bottom: 1px solid #f3f4f6;
+        text-align: center;
+      }
+      .chapter-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+      }
+      .type-item {
+        padding: 10px 15px;
+        margin: 5px 0;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #4b5563;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .type-item:hover {
+        background: #f3f4f6;
+      }
+      .type-item.selected {
+        background: var(--primary);
+        color: white;
+      }
+      .chap-title {
+        font-weight: bold;
+        padding: 10px;
+        margin-top: 10px;
+        color: #111;
+        background: #f9fafb;
+        border-radius: 5px;
+      }
+
+      /* 主区域样式 */
+      .main-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        min-width: 0;
+      }
+      .scroll-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 30px;
+        padding-bottom: 120px;
+        display: flex;
+        justify-content: center;
+      }
+      .card {
+        background: white;
+        width: 100%;
+        max-width: 900px;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        height: fit-content;
+      }
+      .meta-info {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 20px;
+        color: #6b7280;
+        font-size: 14px;
+        flex-wrap: wrap;
+      }
+      .badge {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 12px;
+      }
+      .badge-chap {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .badge-type {
+        background: #f3e8ff;
+        color: #7e22ce;
+      }
+      .badge-source-vip {
+        background: var(--error-bg);
+        color: var(--error);
+        border: 1px solid var(--error);
+      }
+      .badge-source-normal {
+        background: var(--warn-bg);
+        color: var(--warn);
+        border: 1px solid var(--warn);
+      }
+      .progress-txt {
+        margin-left: auto;
+        font-weight: bold;
+      }
+      .q-text {
+        font-size: 1.25rem;
+        line-height: 1.6;
+        margin-bottom: 30px;
+        color: #111;
+        white-space: pre-wrap;
+      }
+      .options-list {
+        display: grid;
+        gap: 15px;
+      }
+      .option-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 15px 20px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+        min-height: 60px;
+      }
+      .option-item:hover {
+        border-color: var(--primary);
+        background: #f8fbff;
+      }
+      .opt-label {
+        font-size: 18px;
+        font-weight: bold;
+        width: 30px;
+        flex-shrink: 0;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      .opt-content {
+        font-size: 18px;
+        line-height: 1.5;
+        color: #374151;
+        word-break: break-all;
+      }
+      .option-item.correct {
+        border-color: var(--success);
+        background: var(--success-bg);
+      }
+      .option-item.wrong {
+        border-color: var(--error);
+        background: var(--error-bg);
+      }
+      .footer-bar {
+        height: 70px;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        flex-shrink: 0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.02);
+        z-index: 10;
+      }
+      .btn {
+        height: 40px;
+        padding: 0 20px;
+        border-radius: 20px;
+        border: 1px solid #d1d5db;
+        background: white;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: none;
+      }
+      .analysis-box {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8fafc;
+        border-left: 4px solid var(--primary);
+        display: none;
+        border-radius: 6px;
+      }
+      .analysis-box.show {
+        display: block;
+      }
+      /* 加载动画层 */
+      #loading-layer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: white;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading-layer">
+      <h2 style="color: var(--primary)">正在加载题库，请稍候...</h2>
+      <p id="error-msg" style="color: red; display: none">
+        加载失败，请检查 questions.json 是否在同一目录下。
+      </p>
+    </div>
+
+    <div class="sidebar" id="sidebar" style="display: none">
+      <div class="sidebar-header">目录</div>
+      <div class="chapter-container" id="chap-list"></div>
+    </div>
+
+    <div class="main-area" id="main-ui" style="display: none">
+      <div class="scroll-content">
+        <div class="card">
+          <div class="meta-info">
+            <span class="badge badge-chap" id="q-chap">第1章</span>
+            <span class="badge badge-type" id="q-type">单选题</span>
+            <span class="badge" id="q-source">课后习题</span>
+            <span class="progress-txt" id="progress-txt">0 / 0</span>
+          </div>
+          <div class="q-text" id="q-content">题目载入中...</div>
+          <div class="options-list" id="options-area"></div>
+          <div
+            id="action-area"
+            style="text-align: center; margin-top: 30px; display: none"
+          ></div>
+          <div class="analysis-box" id="analysis">
+            <h4 style="margin: 0 0 10px 0; color: #059669">
+              参考答案：<span id="true-ans"></span>
+            </h4>
+            <div
+              id="explanation"
+              style="line-height: 1.6; color: #4b5563"
+            ></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <button class="btn" onclick="changeQ(-1)">⬅️ 上一题</button>
+        <button class="btn" onclick="changeQ(1)">下一题 ➡️</button>
+      </div>
+    </div>
+
+    <script>
+      let allData = [],
+        currentList = [];
+      let currentIndex = 0;
+      let userSel = new Set();
+      let answered = false;
+
+      // 【核心改动】：页面加载时自动从服务器获取 questions.json
+      window.onload = () => {
+        fetch("questions.json")
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then((data) => {
+            allData = data;
+            initSidebar(); //
+            document.getElementById("loading-layer").style.display = "none";
+            document.getElementById("sidebar").style.display = "flex";
+            document.getElementById("main-ui").style.display = "flex";
+
+            // 默认加载第一章第一个题型
+            const firstType = document.querySelector(".type-item");
+            if (firstType) firstType.click();
+          })
+          .catch((err) => {
+            document.getElementById("error-msg").style.display = "block";
+            console.error("加载题库失败:", err);
+          });
+      };
+
+      function initSidebar() {
+        const container = document.getElementById("chap-list");
+        const chaps = [...new Set(allData.map((q) => q.chapter))].sort(
+          (a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/))
+        );
+
+        chaps.forEach((chap) => {
+          const title = document.createElement("div");
+          title.className = "chap-title";
+          title.innerText = chap;
+          container.appendChild(title);
+
+          const chapQs = allData.filter((q) => q.chapter === chap);
+          const types = [...new Set(chapQs.map((q) => q.type))];
+
+          types.forEach((type) => {
+            const count = chapQs.filter((q) => q.type === type).length;
+            const item = document.createElement("div");
+            item.className = "type-item";
+            item.innerHTML = `<span>${type}</span> <span>${count}</span>`;
+            item.onclick = () => {
+              document
+                .querySelectorAll(".type-item")
+                .forEach((i) => i.classList.remove("selected"));
+              item.classList.add("selected");
+              loadQs(chap, type);
+            };
+            container.appendChild(item);
+          });
+        });
+      }
+
+      function loadQs(chap, type) {
+        currentList = allData.filter(
+          (q) => q.chapter === chap && q.type === type
+        );
+        currentIndex = 0;
+        renderQ();
+      }
+
+      function renderQ() {
+        if (!currentList.length) return;
+        const q = currentList[currentIndex];
+        answered = false;
+        userSel.clear();
+
+        document.getElementById("q-chap").innerText = q.chapter;
+        document.getElementById("q-type").innerText = q.type;
+
+        const sourceEl = document.getElementById("q-source");
+        sourceEl.innerText = q.source || "课后习题";
+        sourceEl.className = `badge ${
+          q.source === "典型题" ? "badge-source-vip" : "badge-source-normal"
+        }`;
+
+        document.getElementById("progress-txt").innerText = `${
+          currentIndex + 1
+        } / ${currentList.length}`;
+        document.getElementById("q-content").innerText = q.content;
+        document.getElementById("true-ans").innerText = q.answer;
+        document.getElementById("explanation").innerText =
+          q.explanation || "暂无";
+
+        document.getElementById("analysis").classList.remove("show");
+        const actionArea = document.getElementById("action-area");
+        actionArea.style.display = "none";
+
+        const optArea = document.getElementById("options-area");
+        optArea.innerHTML = "";
+
+        if (q.type.includes("选")) {
+          q.options.forEach((opt) => {
+            const el = document.createElement("div");
+            el.className = "option-item";
+            el.dataset.label = opt.label;
+            el.innerHTML = `<div class="opt-label">${opt.label}.</div><div class="opt-content">${opt.text}</div>`;
+            el.onclick = () => handleOptClick(el, opt.label);
+            optArea.appendChild(el);
+          });
+
+          if (q.type === "多选题") {
+            actionArea.style.display = "block";
+            actionArea.innerHTML = `<button class="btn btn-primary" onclick="submitMulti()">提交多选答案</button>`;
+          }
+        } else {
+          actionArea.style.display = "block";
+          actionArea.innerHTML = `<button class="btn btn-primary" onclick="toggleAns(this)">👁️ 显示答案</button>`;
+        }
+      }
+
+      function handleOptClick(el, label) {
+        const q = currentList[currentIndex];
+        if (answered && q.type !== "多选题") return;
+
+        if (q.type === "单选题") {
+          checkAns(label);
+        } else {
+          if (userSel.has(label)) {
+            userSel.delete(label);
+            el.style.borderColor = "#e5e7eb";
+          } else {
+            userSel.add(label);
+            el.style.borderColor = "var(--primary)";
+          }
+        }
+      }
+
+      function submitMulti() {
+        const ans = Array.from(userSel).sort().join(""); //
+        if (!ans) return alert("请选择");
+        checkAns(ans);
+      }
+
+      function checkAns(userAns) {
+        answered = true;
+        const q = currentList[currentIndex];
+        const correct = q.answer.replace(/[^A-D]/g, ""); //
+        document.getElementById("analysis").classList.add("show");
+        document.querySelectorAll(".option-item").forEach((el) => {
+          const lbl = el.dataset.label;
+          if (correct.includes(lbl)) el.classList.add("correct");
+          if (userAns.includes(lbl) && !correct.includes(lbl))
+            el.classList.add("wrong");
+        });
+      }
+
+      function toggleAns(btn) {
+        const box = document.getElementById("analysis");
+        const show = box.classList.toggle("show");
+        btn.innerText = show ? "🙈 隐藏答案" : "👁️ 显示答案";
+      }
+
+      function changeQ(dir) {
+        const next = currentIndex + dir;
+        if (next >= 0 && next < currentList.length) {
+          currentIndex = next;
+          renderQ();
+        }
+      }
+    </script>
+  </body>
+</html>
