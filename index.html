@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>近现代史刷题 - 考前突击版</title>
+    <title>近现代史刷题 - 全能手势版</title>
     <style>
       :root {
         --primary: #2563eb;
@@ -15,8 +15,6 @@
         --success-bg: #ecfdf5;
         --error: #ef4444;
         --error-bg: #fef2f2;
-        --warn: #f59e0b;
-        --warn-bg: #fffbeb;
         --text-main: #1f2937;
         --bg-color: #f3f4f6;
         --sidebar-width: 280px;
@@ -90,8 +88,6 @@
         background: var(--primary);
         color: white;
       }
-
-      /* 侧边栏底部控制区 */
       .sidebar-footer {
         padding: 15px;
         border-top: 1px solid #eee;
@@ -126,15 +122,19 @@
         align-items: center;
         justify-content: space-between;
         padding-top: env(safe-area-inset-top);
+        z-index: 20;
       }
 
+      /* 关键：确保滚动区域撑满，以便监听触摸 */
       .scroll-content {
         flex: 1;
         overflow-y: auto;
         padding: 20px;
         display: flex;
         justify-content: center;
-        padding-bottom: 120px;
+        align-items: flex-start;
+        padding-bottom: 150px; /* 留足底部空间 */
+        position: relative;
       }
 
       .card {
@@ -145,6 +145,7 @@
         border-radius: 16px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         height: fit-content;
+        margin-bottom: 20px;
       }
 
       .meta-info {
@@ -202,7 +203,6 @@
         cursor: pointer;
         transition: 0.2s;
         background: white;
-        -webkit-tap-highlight-color: transparent;
       }
       .option-item.selected {
         border-color: var(--primary);
@@ -216,7 +216,6 @@
         border-color: var(--error);
         background: var(--error-bg);
       }
-      /* 背诵模式下的正确答案高亮 */
       .option-item.recite-correct {
         border-color: var(--success);
         background: var(--success-bg);
@@ -253,9 +252,13 @@
         gap: 10px;
         padding: 10px 15px;
         padding-bottom: calc(15px + env(safe-area-inset-bottom));
-        height: auto;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
         min-height: 80px;
         z-index: 500;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
       }
 
       .btn {
@@ -300,7 +303,6 @@
         justify-content: center;
         flex-wrap: wrap;
       }
-
       .analysis-box {
         margin-top: 25px;
         padding: 20px;
@@ -313,15 +315,25 @@
         display: block;
         animation: fadeIn 0.3s;
       }
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(5px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+
+      /* 弹窗提示 (Toast) */
+      .toast {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.75);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 2000;
+      }
+      .toast.show {
+        opacity: 1;
       }
 
       .overlay {
@@ -334,8 +346,6 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 999;
       }
-
-      /* Toggle Switch CSS */
       .switch {
         position: relative;
         display: inline-block;
@@ -396,16 +406,18 @@
           box-shadow: none;
           border-bottom: 1px solid #eee;
           padding: 20px;
+          min-height: 80vh;
         }
         .scroll-content {
           padding: 0;
-          padding-bottom: 100px;
+          padding-bottom: 160px; /* 增加底部留白，方便上滑 */
         }
       }
     </style>
   </head>
   <body>
     <div class="overlay" id="overlay"></div>
+    <div class="toast" id="toast">再滑一次切换题目</div>
 
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
@@ -419,7 +431,6 @@
         </button>
       </div>
       <div class="chapter-container" id="chap-list"></div>
-
       <div class="sidebar-footer">
         <div class="mode-switch">
           <span style="font-size: 14px; font-weight: bold; color: #4b5563"
@@ -456,7 +467,7 @@
         >
       </div>
 
-      <div class="scroll-content" id="swipe-area">
+      <div class="scroll-content" id="touch-zone">
         <div class="card">
           <div class="meta-info">
             <span class="badge badge-chap" id="q-chap">载入中</span>
@@ -466,9 +477,7 @@
           </div>
           <div class="q-text" id="q-content">正在载入数据...</div>
           <div class="options-list" id="options-area"></div>
-
           <div id="action-area"></div>
-
           <div class="analysis-box" id="analysis">
             <h4 style="margin: 0 0 10px 0; color: var(--success)">
               正确答案：<span id="true-ans"></span>
@@ -478,17 +487,17 @@
               style="line-height: 1.6; font-size: 15px; color: #4b5563"
             ></div>
           </div>
-
           <div
             style="
               text-align: center;
               color: #9ca3af;
               font-size: 12px;
-              margin-top: 30px;
-              opacity: 0.6;
+              margin-top: 40px;
+              opacity: 0.5;
+              padding-bottom: 20px;
             "
           >
-            ← 左滑下一题 &nbsp;&nbsp;|&nbsp;&nbsp; 右滑上一题 →
+            ↔️ 左右滑动切换 | ↕️ 触顶/触底连滑换题
           </div>
         </div>
       </div>
@@ -516,24 +525,22 @@
       let currentIndex = 0,
         userSel = new Set(),
         answered = false;
-      let isReciteMode = false; // 背诵模式状态
+      let isReciteMode = false;
 
-      // 滑动变量
-      let touchStartX = 0,
-        touchStartY = 0,
-        touchEndX = 0,
-        touchEndY = 0;
+      // 手势相关变量
+      let startX = 0,
+        startY = 0;
+      let borderSwipeTimer = null;
+      let borderSwipeCountTop = 0;
+      let borderSwipeCountBottom = 0;
 
       window.onload = () => {
         fetch("questions.json")
-          .then((res) => {
-            if (!res.ok) throw new Error();
-            return res.json();
-          })
+          .then((res) => res.json())
           .then((data) => {
-            allData = data.map((q, index) => ({
+            allData = data.map((q, i) => ({
               ...q,
-              id: index,
+              id: i,
               historySel: [],
               isSubmitted: false,
             }));
@@ -542,7 +549,7 @@
               document.getElementById("close-sidebar").style.display = "block";
             const first = document.querySelector(".type-item");
             if (first) first.click();
-            initSwipe();
+            initGestures(); // 启动手势监听
           })
           .catch((err) => {
             document.getElementById("q-content").innerText =
@@ -550,33 +557,85 @@
           });
       };
 
-      function initSwipe() {
-        const area = document.getElementById("swipe-area");
-        area.addEventListener(
+      function initGestures() {
+        const zone = document.getElementById("touch-zone");
+
+        zone.addEventListener(
           "touchstart",
           (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
           },
-          { passive: false }
+          { passive: true }
         );
-        area.addEventListener(
+
+        zone.addEventListener(
           "touchend",
           (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            touchEndY = e.changedTouches[0].screenY;
-            handleGesture();
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+
+            // 1. 优先判定左右滑动 (位移 > 60px 且 水平位移明显大于垂直)
+            if (
+              Math.abs(diffX) > 60 &&
+              Math.abs(diffX) > Math.abs(diffY) * 1.5
+            ) {
+              diffX > 0 ? changeQ(-1) : changeQ(1);
+              return; // 触发左右滑动后不再检测上下
+            }
+
+            // 2. 判定上下边缘连续滑动
+            const scrollTop = zone.scrollTop;
+            const scrollH = zone.scrollHeight;
+            const clientH = zone.clientHeight;
+
+            // 检测是否在顶部继续下滑 (上一题)
+            if (scrollTop <= 5 && diffY > 50) {
+              handleBorderSwipe("top");
+            }
+            // 检测是否在底部继续上滑 (下一题)
+            // 允许 5px 的误差
+            else if (scrollTop + clientH >= scrollH - 5 && diffY < -50) {
+              handleBorderSwipe("bottom");
+            }
           },
-          { passive: false }
+          { passive: true }
         );
       }
 
-      function handleGesture() {
-        const xDiff = touchEndX - touchStartX;
-        const yDiff = touchEndY - touchStartY;
-        if (Math.abs(xDiff) > Math.abs(yDiff) && Math.abs(xDiff) > 50) {
-          xDiff > 0 ? changeQ(-1) : changeQ(1);
+      function handleBorderSwipe(dir) {
+        const now = Date.now();
+        // 2秒内有效
+        if (now - borderSwipeTimer > 2000) {
+          borderSwipeCountTop = 0;
+          borderSwipeCountBottom = 0;
         }
+        borderSwipeTimer = now;
+
+        if (dir === "top") {
+          borderSwipeCountTop++;
+          if (borderSwipeCountTop === 1) showToast("⬇️ 再滑一次跳转上一题");
+          else if (borderSwipeCountTop >= 2) {
+            changeQ(-1);
+            borderSwipeCountTop = 0;
+          }
+        } else {
+          borderSwipeCountBottom++;
+          if (borderSwipeCountBottom === 1) showToast("⬆️ 再滑一次跳转下一题");
+          else if (borderSwipeCountBottom >= 2) {
+            changeQ(1);
+            borderSwipeCountBottom = 0;
+          }
+        }
+      }
+
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.innerText = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 1500);
       }
 
       function toggleSidebar() {
@@ -590,7 +649,7 @@
         document.getElementById("recite-badge").style.display = isReciteMode
           ? "inline-block"
           : "none";
-        renderQ(); // 重新渲染当前题目
+        renderQ();
       }
 
       function initSidebar() {
@@ -643,66 +702,51 @@
         document.getElementById("explanation").innerText =
           q.explanation || "暂无解析";
         document.getElementById("res-status").innerText = "";
-
-        // 状态重置
-        const box = document.getElementById("analysis");
-        box.classList.remove("show");
+        document.getElementById("analysis").classList.remove("show");
 
         const optArea = document.getElementById("options-area");
         const actArea = document.getElementById("action-area");
         optArea.innerHTML = "";
         actArea.innerHTML = "";
-
         const correctStr = q.answer.replace(/[^A-D]/g, "");
 
         if (q.type.includes("选")) {
           q.options.forEach((opt) => {
             const el = document.createElement("div");
             let className = "option-item";
-
-            // 背诵模式直接显示正确答案
-            if (isReciteMode && correctStr.includes(opt.label)) {
+            if (isReciteMode && correctStr.includes(opt.label))
               className += " recite-correct";
-            } else if (!isReciteMode && userSel.has(opt.label)) {
+            else if (!isReciteMode && userSel.has(opt.label))
               className += " selected";
-            }
 
             el.className = className;
             el.dataset.label = opt.label;
             el.innerHTML = `<div class="opt-label">${opt.label}</div><div class="opt-content">${opt.text}</div>`;
-
-            // 背诵模式下禁选，刷题模式下可选
-            if (!isReciteMode) {
-              el.onclick = () => handleOptClick(el, opt.label);
-            }
+            if (!isReciteMode) el.onclick = () => handleOptClick(el, opt.label);
             optArea.appendChild(el);
           });
-
-          // 按钮逻辑：背诵模式不显示提交按钮，只显示翻页；刷题模式显示功能按钮
           if (!isReciteMode) {
             if (q.type === "多选题") {
-              actArea.innerHTML = `
-                            <button class="btn btn-outline" onclick="toggleAns(this)">🤔 偷看答案</button>
-                            <button class="btn btn-primary" onclick="submitMulti()">确认提交</button>
-                        `;
+              actArea.innerHTML = `<button class="btn btn-outline" onclick="toggleAns(this)">🤔 偷看答案</button> <button class="btn btn-primary" onclick="submitMulti()">确认提交</button>`;
             } else {
-              // 单选题只有偷看
               actArea.innerHTML = `<button class="btn btn-outline" onclick="toggleAns(this)" style="width:100%">🤔 偷看答案</button>`;
             }
           }
         } else {
-          // 简答/论述/材料
           actArea.innerHTML = `<button class="btn btn-primary" onclick="toggleAns(this)" style="width:100%">${
             isReciteMode ? "🙈 隐藏答案" : "👁️ 查看答案"
           }</button>`;
         }
 
-        // 背诵模式或已答题目自动展开解析
         if (isReciteMode || answered) {
           if (!isReciteMode)
             checkAns(Array.from(userSel).sort().join(""), false);
-          box.classList.add("show");
+          document.getElementById("analysis").classList.add("show");
         }
+        // 切换题目时重置滑动计数
+        borderSwipeCountTop = 0;
+        borderSwipeCountBottom = 0;
+        document.getElementById("touch-zone").scrollTop = 0;
       }
 
       function toggleAns(btn) {
@@ -746,13 +790,11 @@
           .split("")
           .sort()
           .join("");
-
         if (shouldSave) {
           answered = true;
           q.isSubmitted = true;
           q.historySel = Array.from(userSel);
         }
-
         const status = document.getElementById("res-status");
         if (userAns === correctStr) {
           status.innerText = "✓ 正确";
@@ -761,11 +803,10 @@
           status.innerText = "✕ 错误";
           status.style.color = "var(--error)";
         }
-
         document.getElementById("analysis").classList.add("show");
         document.querySelectorAll(".option-item").forEach((el) => {
           const lbl = el.dataset.label;
-          el.classList.remove("selected"); // 清除选中态，改用正误态
+          el.classList.remove("selected");
           if (correctStr.includes(lbl)) el.classList.add("correct");
           else if (userAns.includes(lbl)) el.classList.add("wrong");
         });
@@ -789,6 +830,8 @@
         if (next >= 0 && next < currentList.length) {
           currentIndex = next;
           renderQ();
+        } else {
+          showToast(dir > 0 ? "已经是最后一题了" : "已经是第一题了");
         }
       }
     </script>
