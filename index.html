@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>近现代史刷题 - 全能手势版</title>
+    <title>近现代史刷题 - V5.0 极致操控版</title>
     <style>
       :root {
         --primary: #2563eb;
@@ -18,6 +18,8 @@
         --text-main: #1f2937;
         --bg-color: #f3f4f6;
         --sidebar-width: 280px;
+        /* 定义底部安全距离变量 */
+        --safe-bottom: env(safe-area-inset-bottom, 20px);
       }
 
       * {
@@ -92,7 +94,9 @@
         padding: 15px;
         border-top: 1px solid #eee;
         background: #f9fafb;
+        padding-bottom: calc(15px + var(--safe-bottom));
       }
+
       .mode-switch {
         display: flex;
         align-items: center;
@@ -125,7 +129,7 @@
         z-index: 20;
       }
 
-      /* 关键：确保滚动区域撑满，以便监听触摸 */
+      /* 滚动区域 */
       .scroll-content {
         flex: 1;
         overflow-y: auto;
@@ -133,8 +137,11 @@
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding-bottom: 150px; /* 留足底部空间 */
+        /* 底部大幅留白，确保最后的内容能滚上来，不被按钮挡住 */
+        padding-bottom: 180px;
         position: relative;
+        /* 平滑滚动 */
+        scroll-behavior: smooth;
       }
 
       .card {
@@ -203,6 +210,7 @@
         cursor: pointer;
         transition: 0.2s;
         background: white;
+        -webkit-tap-highlight-color: transparent;
       }
       .option-item.selected {
         border-color: var(--primary);
@@ -242,29 +250,29 @@
         color: #374151;
       }
 
-      /* 底部栏 */
+      /* === 底部栏 (重点修复) === */
       .footer-bar {
         background: white;
         border-top: 1px solid #e5e7eb;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 12px;
         padding: 10px 15px;
-        padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        /* 适配底部安全区，并额外增加高度防止误触 */
+        padding-bottom: calc(20px + var(--safe-bottom));
         position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
-        min-height: 80px;
         z-index: 500;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
       }
 
       .btn {
-        height: 48px;
+        height: 50px;
         padding: 0 20px;
-        border-radius: 24px;
+        border-radius: 25px;
         border: 1px solid #d1d5db;
         background: white;
         cursor: pointer;
@@ -274,6 +282,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+      .btn:active {
+        transform: scale(0.98);
       }
       .btn-primary {
         background: var(--primary);
@@ -290,8 +302,7 @@
         border-color: var(--error);
         color: var(--error);
         width: 100%;
-        margin-top: 10px;
-        height: 40px;
+        height: 44px;
         border-radius: 8px;
       }
 
@@ -315,22 +326,37 @@
         display: block;
         animation: fadeIn 0.3s;
       }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
       /* 弹窗提示 (Toast) */
       .toast {
         position: fixed;
-        top: 50%;
+        top: 40%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.75);
+        background: rgba(0, 0, 0, 0.85);
         color: white;
-        padding: 12px 24px;
-        border-radius: 30px;
-        font-size: 14px;
+        padding: 16px 28px;
+        border-radius: 50px;
+        font-size: 16px;
+        font-weight: bold;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.3s;
         z-index: 2000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
       }
       .toast.show {
         opacity: 1;
@@ -346,11 +372,13 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 999;
       }
+
+      /* 开关样式 */
       .switch {
         position: relative;
         display: inline-block;
         width: 50px;
-        height: 24px;
+        height: 26px;
       }
       .switch input {
         opacity: 0;
@@ -364,15 +392,15 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: #ccc;
+        background-color: #cbd5e1;
         transition: 0.4s;
-        border-radius: 24px;
+        border-radius: 34px;
       }
       .slider:before {
         position: absolute;
         content: "";
-        height: 18px;
-        width: 18px;
+        height: 20px;
+        width: 20px;
         left: 3px;
         bottom: 3px;
         background-color: white;
@@ -383,7 +411,7 @@
         background-color: var(--success);
       }
       input:checked + .slider:before {
-        transform: translateX(26px);
+        transform: translateX(24px);
       }
 
       @media (max-width: 768px) {
@@ -406,18 +434,21 @@
           box-shadow: none;
           border-bottom: 1px solid #eee;
           padding: 20px;
-          min-height: 80vh;
+          min-height: 70vh;
         }
+        /* 手机端底部留白更多 */
         .scroll-content {
           padding: 0;
-          padding-bottom: 160px; /* 增加底部留白，方便上滑 */
+          padding-bottom: 200px;
         }
       }
     </style>
   </head>
   <body>
     <div class="overlay" id="overlay"></div>
-    <div class="toast" id="toast">再滑一次切换题目</div>
+    <div class="toast" id="toast">
+      <span>🚀</span> <span id="toast-msg">提示消息</span>
+    </div>
 
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
@@ -487,17 +518,21 @@
               style="line-height: 1.6; font-size: 15px; color: #4b5563"
             ></div>
           </div>
+
           <div
             style="
               text-align: center;
               color: #9ca3af;
-              font-size: 12px;
-              margin-top: 40px;
-              opacity: 0.5;
-              padding-bottom: 20px;
+              font-size: 13px;
+              margin-top: 50px;
+              opacity: 0.6;
+              padding: 20px;
+              border-top: 1px dashed #eee;
             "
           >
-            ↔️ 左右滑动切换 | ↕️ 触顶/触底连滑换题
+            <div>👉 右滑下一题 &nbsp;|&nbsp; 👈 左滑上一题</div>
+            <div style="margin-top: 8px">⬆️ 触底上拉(x2) 下一题</div>
+            <div style="margin-top: 4px">⬇️ 触顶下拉(x2) 上一题</div>
           </div>
         </div>
       </div>
@@ -511,6 +546,7 @@
             color: #6b7280;
             min-width: 60px;
             text-align: center;
+            font-family: monospace;
           "
           >0/0</span
         >
@@ -549,7 +585,7 @@
               document.getElementById("close-sidebar").style.display = "block";
             const first = document.querySelector(".type-item");
             if (first) first.click();
-            initGestures(); // 启动手势监听
+            initGestures();
           })
           .catch((err) => {
             document.getElementById("q-content").innerText =
@@ -577,27 +613,29 @@
             const diffX = endX - startX;
             const diffY = endY - startY;
 
-            // 1. 优先判定左右滑动 (位移 > 60px 且 水平位移明显大于垂直)
+            // 1. 左右滑动 (水平位移 > 60px 且 水平位移 > 垂直位移的1.5倍)
             if (
               Math.abs(diffX) > 60 &&
               Math.abs(diffX) > Math.abs(diffY) * 1.5
             ) {
-              diffX > 0 ? changeQ(-1) : changeQ(1);
-              return; // 触发左右滑动后不再检测上下
+              // diffX > 0 (向右滑) -> 下一题 (按您要求定制)
+              // diffX < 0 (向左滑) -> 上一题
+              if (diffX > 0) changeQ(1);
+              else changeQ(-1);
+              return;
             }
 
-            // 2. 判定上下边缘连续滑动
+            // 2. 垂直边缘连滑 (触顶/触底)
             const scrollTop = zone.scrollTop;
             const scrollH = zone.scrollHeight;
             const clientH = zone.clientHeight;
 
-            // 检测是否在顶部继续下滑 (上一题)
-            if (scrollTop <= 5 && diffY > 50) {
+            // 在顶部继续下拉 (上一题)
+            if (scrollTop <= 5 && diffY > 60) {
               handleBorderSwipe("top");
             }
-            // 检测是否在底部继续上滑 (下一题)
-            // 允许 5px 的误差
-            else if (scrollTop + clientH >= scrollH - 5 && diffY < -50) {
+            // 在底部继续上拉 (下一题) - 增加容差值
+            else if (scrollTop + clientH >= scrollH - 10 && diffY < -60) {
               handleBorderSwipe("bottom");
             }
           },
@@ -616,14 +654,14 @@
 
         if (dir === "top") {
           borderSwipeCountTop++;
-          if (borderSwipeCountTop === 1) showToast("⬇️ 再滑一次跳转上一题");
+          if (borderSwipeCountTop === 1) showToast("⬇️ 再拉一次跳转上一题");
           else if (borderSwipeCountTop >= 2) {
             changeQ(-1);
             borderSwipeCountTop = 0;
           }
         } else {
           borderSwipeCountBottom++;
-          if (borderSwipeCountBottom === 1) showToast("⬆️ 再滑一次跳转下一题");
+          if (borderSwipeCountBottom === 1) showToast("⬆️ 再拉一次跳转下一题");
           else if (borderSwipeCountBottom >= 2) {
             changeQ(1);
             borderSwipeCountBottom = 0;
@@ -633,7 +671,7 @@
 
       function showToast(msg) {
         const t = document.getElementById("toast");
-        t.innerText = msg;
+        document.getElementById("toast-msg").innerText = msg;
         t.classList.add("show");
         setTimeout(() => t.classList.remove("show"), 1500);
       }
@@ -743,9 +781,10 @@
             checkAns(Array.from(userSel).sort().join(""), false);
           document.getElementById("analysis").classList.add("show");
         }
-        // 切换题目时重置滑动计数
+        // 切换时重置滑动计数
         borderSwipeCountTop = 0;
         borderSwipeCountBottom = 0;
+        // 切换题目时自动回顶
         document.getElementById("touch-zone").scrollTop = 0;
       }
 
@@ -753,7 +792,10 @@
         const box = document.getElementById("analysis");
         if (box.classList.contains("show")) {
           box.classList.remove("show");
-          btn.innerText = q.type.includes("选") ? "🤔 偷看答案" : "👁️ 查看答案";
+          btn.innerText =
+            currentList[currentIndex].type.includes("选") && !answered
+              ? "🤔 偷看答案"
+              : "👁️ 查看答案";
         } else {
           box.classList.add("show");
           btn.innerText = "🙈 隐藏答案";
