@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>近现代史 - 智能复习系统 V12.0</title>
+    <title>近现代史 - 智能复习系统 V14.3 (自定义Key版)</title>
     <style>
       :root {
         --primary: #4f46e5;
@@ -318,6 +318,11 @@
         border-color: var(--error);
         background: var(--error-bg);
       }
+      
+      .opt-row.missed { /* 漏选样式 */
+        border-color: #f59e0b; /* 黄色 */
+        background: #fffbeb;
+      }
 
       .opt-idx {
         width: 28px;
@@ -345,6 +350,10 @@
         background: var(--error);
         color: white;
       }
+      .opt-row.missed .opt-idx {
+        background: #f59e0b;
+        color: white;
+      }
 
       /* 答案与解析 */
       .answer-section {
@@ -358,6 +367,57 @@
       .answer-section.show {
         display: block;
         animation: slideDown 0.3s;
+      }
+      
+      .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .status-correct { background: #d1fae5; color: #059669; }
+      .status-partial { background: #fef3c7; color: #d97706; }
+      .status-wrong { background: #fee2e2; color: #dc2626; }
+
+      /* AI 相关样式 */
+      .ai-btn {
+        margin-top: 15px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.2s;
+        font-weight: 600;
+        box-shadow: 0 2px 5px rgba(99, 102, 241, 0.3);
+      }
+      .ai-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4);
+      }
+      .ai-result {
+        margin-top: 15px;
+        padding: 15px;
+        background: #ffffff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #334155;
+        display: none;
+        position: relative;
+      }
+      .ai-result.loading::before {
+        content: "🤖 正在思考中...";
+        color: #6366f1;
+        font-style: italic;
       }
 
       /* 底部操作栏 */
@@ -419,7 +479,7 @@
         border: none;
       }
 
-      /* 遮罩 */
+      /* 遮罩与模态框 */
       .overlay {
         position: fixed;
         inset: 0;
@@ -427,6 +487,34 @@
         z-index: 45;
         display: none;
       }
+      
+      .modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 25px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 400px;
+        z-index: 100;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        display: none;
+      }
+      .modal h3 { margin-top: 0; color: var(--text-main); }
+      
+      .form-group { margin-bottom: 15px; }
+      .form-label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 5px; }
+      .form-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+      }
+      
+      .modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
       @media (max-width: 768px) {
         .sidebar {
@@ -482,9 +570,27 @@
         </div>
       </div>
       <div class="chapter-list" id="chapterList"></div>
+      
+      <!-- 底部工具区 -->
       <div
-        style="padding: 15px; text-align: center; border-top: 1px solid #f1f5f9"
+        style="padding: 15px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px;"
       >
+        <button
+          onclick="openAiSettings()"
+          style="
+            color: var(--primary);
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+          "
+        >
+          ⚙️ AI 设置
+        </button>
         <button
           onclick="resetChapter()"
           style="
@@ -501,7 +607,99 @@
         </button>
       </div>
     </div>
-    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+    <!-- API 设置弹窗 -->
+    <div class="modal" id="aiModal">
+      <h3>配置 AI 服务</h3>
+      
+      <div class="form-group">
+        <label class="form-label">选择服务商</label>
+        <select class="form-input" id="aiProvider" onchange="toggleAiInputs()">
+          <option value="gemini">Google Gemini</option>
+          <option value="qwen">通义灵码 (阿里云 DashScope)</option>
+          <option value="siliconflow">通义千问 (硅基流动 - 防跨域备用)</option>
+          <option value="custom">其他 (豆包/DeepSeek/Custom)</option>
+        </select>
+      </div>
+
+      <!-- Gemini 配置 -->
+      <div id="geminiConfig">
+        <div class="form-group">
+          <label class="form-label">选择模型版本</label>
+          <select class="form-input" id="geminiModel">
+            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (推荐)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input type="password" id="geminiKey" class="form-input" placeholder="AIza..." />
+          <div style="font-size:0.8rem; margin-top:5px;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--primary)">👉 点击获取免费 Gemini Key</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 通义灵码/阿里云 (Qwen) 配置 -->
+      <div id="qwenConfig" style="display:none">
+        <div class="form-group">
+            <label class="form-label">API Key (通义灵码/阿里云)</label>
+            <input type="password" id="qwenKey" class="form-input" placeholder="sk-..." />
+            <div style="font-size:0.8rem; margin-top:5px;">
+              <a href="https://dashscope.console.aliyun.com/apiKey" target="_blank" style="color:var(--primary)">👉 点击获取 DashScope Key</a>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">选择模型</label>
+            <select class="form-input" id="qwenModel">
+              <option value="qwen-turbo">qwen-turbo (标准版)</option>
+              <option value="qwen-plus">qwen-plus (增强版)</option>
+              <option value="qwen-max">qwen-max (旗舰版)</option>
+            </select>
+        </div>
+      </div>
+
+      <!-- 硅基流动 (SiliconFlow) 配置 -->
+      <div id="siliconFlowConfig" style="display:none">
+        <div class="form-group">
+            <label class="form-label">API Key (硅基流动)</label>
+            <input type="password" id="sfKey" class="form-input" placeholder="sk-..." />
+            <div style="font-size:0.8rem; margin-top:5px;">
+              <a href="https://cloud.siliconflow.cn/i/sDwG8Q6x" target="_blank" style="color:var(--primary)">👉 注册 SiliconCloud (免费 Qwen)</a>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">选择模型</label>
+            <select class="form-input" id="sfModel">
+              <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 7B (免费)</option>
+              <option value="Qwen/Qwen2.5-72B-Instruct">Qwen 2.5 72B (推荐)</option>
+              <option value="deepseek-ai/DeepSeek-V3">DeepSeek V3</option>
+            </select>
+        </div>
+      </div>
+
+      <!-- 自定义 配置 -->
+      <div id="customConfig" style="display:none">
+        <div class="form-group">
+          <label class="form-label">API Base URL</label>
+          <input type="text" id="customUrl" class="form-input" placeholder="https://api..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input type="password" id="customKey" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model Name</label>
+          <input type="text" id="customModel" class="form-input" />
+        </div>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn btn-secondary" onclick="closeAll()">取消</button>
+        <button class="btn btn-primary" onclick="saveAiSettings()">保存配置</button>
+      </div>
+    </div>
 
     <!-- 主界面 -->
     <div class="main-content">
@@ -577,25 +775,26 @@
         history: { name: "课后练习", data: [], prefix: "hist_" },
       };
 
+      // 内置的通义灵码 API Key (已置空，需用户填写)
+      const BUILTIN_API_KEY = "";
+
       let curMod = localStorage.getItem("last_mod") || "postgrad";
       let allData = [];
       let curChapter = "";
-      let rawList = []; // 章节全部题目
-      let filteredList = []; // 筛选后题目
-      let curIndex = 0; // 筛选后索引
+      let rawList = []; 
+      let filteredList = [];
+      let curIndex = 0; 
       let filterType = "all";
-      let userSel = new Set(); // 临时选择
+      let userSel = new Set(); 
 
       // === 初始化 ===
       window.onload = async () => {
         try {
-          // 尝试并发加载两个JSON
           const [res1, res2] = await Promise.allSettled([
             fetch("./questions.json").then((r) => r.json()),
             fetch("./history_questions.json").then((r) => r.json()),
           ]);
 
-          // 加载并尝试前端修复（双重保险，防止Python没处理好）
           modules.postgrad.data = frontendRepair(
             res1.status === "fulfilled" ? res1.value : []
           );
@@ -612,29 +811,20 @@
         }
       };
 
-      // 前端兜底修复：如果检测到没有选项但内容里包含ABC，尝试切割
       function frontendRepair(data) {
         if (!data) return [];
         return data.map((q) => {
           if (q.type === "知识点") return q;
-
-          // 修复选项：如果有“选”字，且options为空
           if (q.type.includes("选") && (!q.options || q.options.length === 0)) {
-            // 正则尝试拆分：A. 或 A、 或 A(空格)
             const parts = q.content.split(/\s(?=[A-E][\.．、])/);
-
-            // 如果切分成功（至少切出题干和1个选项）
             if (parts.length > 1) {
-              q.content = parts[0]; // 第一段是题干
+              q.content = parts[0]; 
               q.options = [];
               for (let i = 1; i < parts.length; i++) {
                 const t = parts[i].trim();
                 q.options.push({
                   label: t.charAt(0),
-                  text: t
-                    .substring(1)
-                    .replace(/^[\.．、]/, "")
-                    .trim(),
+                  text: t.substring(1).replace(/^[\.．、]/, "").trim(),
                 });
               }
             }
@@ -671,7 +861,6 @@
         const list = document.getElementById("chapterList");
         list.innerHTML = "";
 
-        // 统计章节
         const map = new Map();
         allData.forEach((q) => {
           if (!map.has(q.chapter)) map.set(q.chapter, 0);
@@ -697,7 +886,6 @@
         curChapter = cName;
         rawList = allData.filter((q) => q.chapter === cName);
 
-        // 恢复进度
         const key = modules[curMod].prefix + cName;
         const saved = JSON.parse(localStorage.getItem(key) || "[]");
         rawList.forEach((q, i) => {
@@ -712,7 +900,10 @@
 
         setFilter(filterType);
         initSidebar();
-        if (window.innerWidth <= 768) toggleSidebar();
+        if (window.innerWidth <= 768) {
+             document.getElementById("sidebar").classList.remove("open");
+             document.getElementById("overlay").classList.remove("active");
+        }
       }
 
       function setFilter(type) {
@@ -727,7 +918,6 @@
         else
           filteredList = rawList.filter((q) => q.type && q.type.includes(type));
 
-        // 更新跳转
         const sel = document.getElementById("qJumper");
         sel.innerHTML = "";
         if (filteredList.length === 0) {
@@ -740,15 +930,16 @@
 
         sel.disabled = false;
         filteredList.forEach((q, i) => {
+          // 修复：只要做了(isSubmitted)，就显示✅
+          const mark = q.isSubmitted ? " ✅" : "";
           sel.add(
             new Option(
-              `${i + 1}. ${shorten(q.content)} ${q.isSubmitted ? "✅" : ""}`,
+              `${i + 1}. ${shorten(q.content)}${mark}`,
               i
             )
           );
         });
 
-        // 找第一个未做
         let next = filteredList.findIndex((q) => !q.isSubmitted);
         curIndex = next === -1 ? 0 : next;
         renderQ();
@@ -769,7 +960,6 @@
 
         const container = document.getElementById("qContainer");
 
-        // 根据类型决定卡片样式
         let cardClass = "card";
         let btnText = "✅ 提交答案";
         let btnClass = "btn btn-primary";
@@ -787,13 +977,33 @@
             curIndex < filteredList.length - 1 ? "下一题 ➡️" : "完成本章";
         }
 
-        // 更新主按钮
         const mBtn = document.getElementById("mainBtn");
         mBtn.innerText = btnText;
         mBtn.className = btnClass;
 
-        // 渲染选项或内容
         let bodyHtml = "";
+        
+        // 判分逻辑状态
+        let statusBadge = "";
+        if(q.isSubmitted && q.options) {
+            const correctSet = new Set((q.answer || "").toUpperCase().split("").filter(c => /[A-Z]/.test(c)));
+            
+            // 检查是否有错选
+            let hasWrong = false;
+            userSel.forEach(s => { if(!correctSet.has(s)) hasWrong = true; });
+            
+            // 检查是否全对
+            let isFullCorrect = true;
+            if(userSel.size !== correctSet.size) isFullCorrect = false;
+            
+            if(hasWrong) {
+                statusBadge = `<div class="status-badge status-wrong">❌ 回答错误</div>`;
+            } else if (isFullCorrect) {
+                statusBadge = `<div class="status-badge status-correct">✅ 回答正确</div>`;
+            } else {
+                statusBadge = `<div class="status-badge status-partial">⚠️ 漏选（算半对）</div>`;
+            }
+        }
 
         if (q.type === "知识点") {
           bodyHtml = `<div style="font-size:1.1rem; line-height:1.8; color:#b45309;">${q.content}</div>`;
@@ -802,10 +1012,16 @@
               ${q.options
                 .map((opt) => {
                   let cls = "opt-row";
+                  const correctSet = new Set((q.answer || "").toUpperCase().split(""));
+                  
                   if (q.isSubmitted) {
-                    const ans = (q.answer || "").toUpperCase();
-                    if (ans.includes(opt.label)) cls += " correct";
-                    else if (userSel.has(opt.label)) cls += " wrong";
+                    if (correctSet.has(opt.label)) {
+                        cls += " correct"; // 正确答案项
+                        // 如果用户漏选了这个正确项，标记为漏选色（可选）
+                        // if (!userSel.has(opt.label)) cls += " missed"; 
+                    } else if (userSel.has(opt.label)) {
+                        cls += " wrong"; // 用户选了，但是是错的
+                    }
                   } else {
                     if (userSel.has(opt.label)) cls += " selected";
                   }
@@ -825,6 +1041,9 @@
           bodyHtml = `<div style="color:red">无法识别选项，请查看答案。</div>`;
         }
 
+        // 构建AI按钮（仅在非知识点且已提交时显示）
+        const showAiBtn = q.isSubmitted && q.type !== "知识点";
+
         container.innerHTML = `
           <div class="${cardClass}">
              <div class="q-header">
@@ -843,6 +1062,7 @@
              <div class="answer-section ${
                q.isSubmitted ? "show" : ""
              }" id="ansPanel">
+                ${statusBadge}
                 <div style="margin-bottom:10px;">
                    <span style="font-weight:bold; color:#1e293b">参考答案：</span>
                    <span style="color:var(--primary); font-weight:bold; font-size:1.1rem">${
@@ -852,9 +1072,255 @@
                 <div style="font-size:0.95rem; color:#475569; border-top:1px solid #e2e8f0; padding-top:10px; line-height:1.6">
                    <strong>解析：</strong><br>${q.explanation || "暂无"}
                 </div>
+                
+                ${showAiBtn ? `
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;">
+                  <button class="ai-btn" onclick="askAI()">🤖 AI 深度解析</button>
+                  <button class="ai-btn" style="background:#64748b" onclick="copyPrompt()">📋 复制题目(手动问AI)</button>
+                </div>
+                <div id="aiResult" class="ai-result"></div>` : ''}
              </div>
           </div>
         `;
+      }
+
+      // === AI 设置逻辑 ===
+      function openAiSettings() {
+        document.getElementById("overlay").style.display = "block";
+        document.getElementById("aiModal").style.display = "block";
+        
+        // 加载保存的设置
+        const provider = localStorage.getItem("ai_provider") || "gemini";
+        document.getElementById("aiProvider").value = provider;
+        document.getElementById("geminiKey").value = localStorage.getItem("ai_gemini_key") || "";
+        document.getElementById("geminiModel").value = localStorage.getItem("ai_gemini_model") || "gemini-1.5-flash-latest";
+        
+        // Qwen
+        document.getElementById("qwenKey").value = localStorage.getItem("ai_qwen_key") || "";
+        document.getElementById("qwenModel").value = localStorage.getItem("ai_qwen_model") || "qwen-turbo";
+
+        // SiliconFlow
+        document.getElementById("sfKey").value = localStorage.getItem("ai_sf_key") || "";
+        document.getElementById("sfModel").value = localStorage.getItem("ai_sf_model") || "Qwen/Qwen2.5-72B-Instruct";
+
+        // Custom
+        document.getElementById("customUrl").value = localStorage.getItem("ai_custom_url") || "";
+        document.getElementById("customKey").value = localStorage.getItem("ai_custom_key") || "";
+        document.getElementById("customModel").value = localStorage.getItem("ai_custom_model") || "";
+        
+        toggleAiInputs();
+      }
+
+      function toggleAiInputs() {
+        const type = document.getElementById("aiProvider").value;
+        document.getElementById('geminiConfig').style.display = 'none';
+        document.getElementById('qwenConfig').style.display = 'none';
+        document.getElementById('siliconFlowConfig').style.display = 'none';
+        document.getElementById('customConfig').style.display = 'none';
+
+        if(type === 'gemini') {
+            document.getElementById('geminiConfig').style.display = 'block';
+        } else if (type === 'qwen') {
+            document.getElementById('qwenConfig').style.display = 'block';
+        } else if (type === 'siliconflow') {
+            document.getElementById('siliconFlowConfig').style.display = 'block';
+        } else {
+            document.getElementById('customConfig').style.display = 'block';
+        }
+      }
+
+      function closeAll() {
+        document.getElementById("overlay").style.display = "none";
+        document.getElementById("aiModal").style.display = "none";
+        document.getElementById("sidebar").classList.remove("open");
+        document.getElementById("overlay").classList.remove("active");
+      }
+
+      function saveAiSettings() {
+        const provider = document.getElementById("aiProvider").value;
+        localStorage.setItem("ai_provider", provider);
+        
+        if(provider === 'gemini') {
+            const key = document.getElementById("geminiKey").value.trim();
+            const model = document.getElementById("geminiModel").value;
+            if(!key) { alert("Gemini Key 不能为空"); return; }
+            localStorage.setItem("ai_gemini_key", key);
+            localStorage.setItem("ai_gemini_model", model);
+        } else if (provider === 'qwen') {
+            const key = document.getElementById("qwenKey").value.trim();
+            const model = document.getElementById("qwenModel").value;
+            if(!key) { alert("通义灵码 Key 不能为空"); return; }
+            localStorage.setItem("ai_qwen_key", key);
+            localStorage.setItem("ai_qwen_model", model);
+        } else if (provider === 'siliconflow') {
+            const key = document.getElementById("sfKey").value.trim();
+            const model = document.getElementById("sfModel").value;
+            if(!key) { alert("硅基流动 Key 不能为空"); return; }
+            localStorage.setItem("ai_sf_key", key);
+            localStorage.setItem("ai_sf_model", model);
+        } else {
+            const url = document.getElementById("customUrl").value.trim().replace(/\/$/, ""); 
+            const key = document.getElementById("customKey").value.trim();
+            const model = document.getElementById("customModel").value.trim();
+            
+            if(!url || !key || !model) { alert("自定义配置所有字段都必填"); return; }
+            localStorage.setItem("ai_custom_url", url);
+            localStorage.setItem("ai_custom_key", key);
+            localStorage.setItem("ai_custom_model", model);
+        }
+        
+        alert("配置已保存！");
+        closeAll();
+      }
+
+      // === AI 提问逻辑 ===
+      async function askAI() {
+        const resultDiv = document.getElementById("aiResult");
+        resultDiv.style.display = "block";
+        resultDiv.classList.add("loading");
+        resultDiv.innerHTML = "";
+        
+        const q = filteredList[curIndex];
+        const prompt = `你是专业的历史老师。请详细解析这道题，解释为什么选这个答案，以及其他选项为什么错。
+        题目：${q.content}
+        选项：${JSON.stringify(q.options || [])}
+        正确答案：${q.answer}`;
+
+        const provider = localStorage.getItem("ai_provider") || "gemini";
+        
+        try {
+            let text = "";
+            
+            if (provider === 'gemini') {
+                const apiKey = localStorage.getItem("ai_gemini_key");
+                const modelName = localStorage.getItem("ai_gemini_model") || "gemini-1.5-flash-latest";
+                if (!apiKey) throw new Error("请先在设置中配置 Gemini Key");
+                
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error?.message || response.statusText);
+                }
+                const data = await response.json();
+                text = data.candidates?.[0]?.content?.parts?.[0]?.text || "无内容";
+                
+            } else if (provider === 'qwen') {
+                // 通义灵码
+                const apiKey = localStorage.getItem("ai_qwen_key");
+                const modelName = localStorage.getItem("ai_qwen_model") || "qwen-turbo";
+                if (!apiKey) throw new Error("请先在设置中配置 通义灵码 Key");
+
+                const response = await fetch(`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${BUILTIN_API_KEY || apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: modelName,
+                        messages: [{ role: "user", content: prompt }]
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 0) throw new Error("CORS 跨域错误：阿里云接口默认拦截网页请求。<br>建议：1.安装跨域插件(Allow CORS) 2.切换到“硅基流动”选项(推荐)");
+                    const errText = await response.text();
+                    throw new Error(`API 错误 (${response.status}): ${errText}`);
+                }
+
+                const data = await response.json();
+                text = data.choices?.[0]?.message?.content || "无内容";
+
+            } else if (provider === 'siliconflow') {
+                // 硅基流动
+                const apiKey = localStorage.getItem("ai_sf_key");
+                const modelName = localStorage.getItem("ai_sf_model") || "Qwen/Qwen2.5-72B-Instruct";
+                if (!apiKey) throw new Error("请先在设置中配置硅基流动 Key");
+
+                const response = await fetch(`https://api.siliconflow.cn/v1/chat/completions`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: modelName,
+                        messages: [{ role: "user", content: prompt }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API 错误 (${response.status}): ${errText}`);
+                }
+
+                const data = await response.json();
+                text = data.choices?.[0]?.message?.content || "无内容";
+
+            } else {
+                // 自定义
+                const url = localStorage.getItem("ai_custom_url");
+                const key = localStorage.getItem("ai_custom_key");
+                const model = localStorage.getItem("ai_custom_model");
+                
+                if (!url || !key) throw new Error("请先在设置中配置自定义 API 信息");
+
+                const response = await fetch(`${url}/chat/completions`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: "user", content: prompt }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 0) throw new Error("网络错误(跨域CORS限制)，请尝试使用 Gemini 或 硅基流动。");
+                    const errText = await response.text();
+                    throw new Error(`API 错误 (${response.status}): ${errText}`);
+                }
+                
+                const data = await response.json();
+                text = data.choices?.[0]?.message?.content || "无内容";
+            }
+
+            resultDiv.classList.remove("loading");
+            resultDiv.innerHTML = text.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+        } catch (e) {
+            resultDiv.classList.remove("loading");
+            let errorMsg = `<span style="color:red">请求失败：${e.message}</span>`;
+            
+            if (e.message.includes("quota") || e.message.includes("429")) {
+                errorMsg += `<br><br>💡 <strong>配额不足</strong>：请检查您的账户余额或免费额度。`;
+            } else if (e.message.includes("Failed to fetch")) {
+                errorMsg += `<br><br>💡 <strong>网络错误</strong>：如果是通义灵码(阿里云)，通常是浏览器拦截了请求。推荐切换到【硅基流动】选项，它也是通义模型，但完美支持网页直连。`;
+            }
+
+            resultDiv.innerHTML = errorMsg;
+        }
+      }
+      
+      function copyPrompt() {
+        const q = filteredList[curIndex];
+        const prompt = `请解析这道历史题：${q.content}。选项：${JSON.stringify(q.options || []).replace(/"/g, '')}。正确答案：${q.answer}`;
+        
+        const tempInput = document.createElement("textarea");
+        tempInput.value = prompt;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        
+        alert("✅ 题目已复制！\n你可以去粘贴提问了。");
       }
 
       // === 交互 ===
@@ -884,8 +1350,7 @@
           q.isSubmitted = true;
           saveProgress();
           renderQ();
-          initSidebar(); // 更新进度
-          // 更新下拉框标记
+          initSidebar(); 
           const sel = document.getElementById("qJumper");
           if (sel.options[curIndex]) sel.options[curIndex].text += " ✅";
         }
